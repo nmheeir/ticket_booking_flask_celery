@@ -8,6 +8,11 @@ from app.forms.booking import BookingForm, PaymentForm
 from app.utils.database import db, commit_changes
 from app.utils.decorators import permission_required
 from app.utils.permissions import Permission
+import logging
+import uuid
+from app.models.payment import Payment
+
+logger = logging.getLogger(__name__)
 
 booking_bp = Blueprint('booking', __name__)
 
@@ -52,23 +57,34 @@ def checkout(booking_id):
     form = PaymentForm()
     if form.validate_on_submit():
         try:
-            # Process payment and update booking
-            booking.mark_as_paid('DUMMY_PAYMENT_ID')  # In a real app, use actual payment processing
+            # Tạo bản ghi Payment mới
+            payment = Payment(
+                id=f'DUMMY-{uuid.uuid4().hex[:8].upper()}',
+                booking_id=booking.id,
+                amount=booking.total_amount,
+                status='paid',
+                method='card'  # hoặc lấy từ form.method nếu có
+            )
+            db.session.add(payment)
+
+            # Cập nhật booking
+            booking.mark_as_paid(payment.id)
             booking.confirm()
             
-            # Create tickets
+            # Tạo vé
             for _ in range(booking.quantity):
                 ticket = Ticket(event_id=booking.event_id, booking_id=booking.id)
                 db.session.add(ticket)
             
-            # Update event available tickets
+            # Cập nhật event
             event = Event.query.get(booking.event_id)
             event.update_available_tickets(booking.quantity)
             
             commit_changes()
-            
+
             flash('Payment successful! Your tickets have been issued.', 'success')
             return redirect(url_for('booking.my_bookings'))
+
         except Exception as e:
             flash('Payment processing failed. Please try again.', 'danger')
     
@@ -88,7 +104,12 @@ def cancel_booking(booking_id):
         booking = BookingService.cancel_booking(booking_id, current_user.id)
         flash('Booking cancelled successfully', 'success')
     except ValueError as e:
-        flash(str(e), 'danger')
+        error_message = (
+            f"Failed to cancel booking ID {booking_id} for user ID {current_user.id} "
+            f"({getattr(current_user, 'username', 'N/A')}): {str(e)}"
+        )
+        logger.error(error_message)
+        flash(error_message, 'danger')
     return redirect(url_for('booking.my_bookings'))
 
 @booking_bp.route('/all')

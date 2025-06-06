@@ -4,6 +4,7 @@ from random import randint
 from app.utils.database import db
 from app.models.user import User
 from app.models.event import Event
+from app.models.payment import Payment
 
 class Booking(db.Model):
     __tablename__ = 'bookings'
@@ -23,7 +24,7 @@ class Booking(db.Model):
     # Relationships
     tickets = db.relationship('Ticket', backref='booking', lazy=True)
     event = db.relationship('Event', backref='bookings', lazy=True)
-
+    payments = db.relationship('Payment', backref='booking', lazy=True)
     def __init__(self, user_id, event_id, quantity, total_amount):
         self.booking_number = self.generate_booking_number()
         self.user_id = user_id

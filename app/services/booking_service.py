@@ -31,7 +31,7 @@ class BookingService:
         commit_changes()
 
         # Create payment intent
-        payment_data = PaymentService.create_payment_intent(booking.id)
+        payment_data = PaymentService.create_payment_intent(booking.id, 123, 123, 123)
         
         return {
             'booking': booking.to_dict(),

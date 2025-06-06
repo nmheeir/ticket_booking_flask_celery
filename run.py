@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_wtf import CSRFProtect
 from app.config import config
 from app.utils.database import init_db
 from app.utils.filters import register_filters
@@ -27,6 +28,9 @@ def create_app(config_name=None):
 
     mail = Mail()
     mail.init_app(app)
+
+    csrf = CSRFProtect()
+    csrf.init_app(app)
 
     # Register filters
     register_filters(app)
