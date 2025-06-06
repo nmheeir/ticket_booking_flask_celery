@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - Ticket Booking System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Checkout</h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h4>Event Details</h4>
+                        <p><strong>Event:</strong> {{ booking.event.title }}</p>
+                        <p><strong>Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}</p>
+                        <p><strong>Venue:</strong> {{ booking.event.venue }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h4>Booking Details</h4>
+                        <p><strong>Booking Number:</strong> {{ booking.booking_number }}</p>
+                        <p><strong>Number of Tickets:</strong> {{ booking.quantity }}</p>
+                        <p><strong>Total Amount:</strong> {{ booking.total_amount | format_price }}</p>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h4>Payment Information</h4>
+                        <form id="payment-form" method="POST">
+                            {{ form.csrf_token }}
+                            <div class="mb-3">
+                                <label for="card-holder" class="form-label">Card Holder Name</label>
+                                {{ form.card_holder(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                <label for="card-number" class="form-label">Card Number</label>
+                                {{ form.card_number(class="form-control") }}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="expiry" class="form-label">Expiry Date (MM/YY)</label>
+                                    {{ form.expiry(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="cvv" class="form-label">CVV</label>
+                                    {{ form.cvv(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg" id="submit-button">
+                                    Pay {{ booking.total_amount | format_price }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <h5>Important Information:</h5>
+                            <ul class="mb-0">
+                                <li>Your tickets will be issued immediately after successful payment.</li>
+                                <li>You can view and download your tickets from the My Bookings page.</li>
+                                <li>Cancellation is available up to 24 hours before the event.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('payment-form');
+    const submitButton = document.getElementById('submit-button');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        submitButton.disabled = true;
+        submitButton.textContent = 'Processing...';
+
+        // Here you would typically integrate with a payment gateway
+        // For now, we'll just submit the form
+        form.submit();
+    });
+});
+</script>
+{% endblock %} 

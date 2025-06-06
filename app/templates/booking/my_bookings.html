@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings - Ticket Booking System{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">My Bookings</h2>
+
+<div class="row">
+    <div class="col-md-12">
+        {% if bookings %}
+            {% for booking in bookings %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {% if booking.event.image_url %}
+                            <img src="{{ booking.event.image_url }}" class="img-fluid rounded" alt="{{ booking.event.title }}">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='images/default-event.jpg') }}" class="img-fluid rounded" alt="Default Event Image">
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <h4>{{ booking.event.title }}</h4>
+                            <div class="mb-2">
+                                <span class="badge bg-primary">{{ booking.status }}</span>
+                                <span class="badge bg-info">{{ booking.payment_status }}</span>
+                            </div>
+                            <p class="mb-2">
+                                <strong>Booking Number:</strong> {{ booking.booking_number }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Event Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Venue:</strong> {{ booking.event.venue }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Tickets:</strong> {{ booking.quantity }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Total Amount:</strong> {{ booking.total_amount | format_price }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Booked On:</strong> {{ booking.created_at.strftime('%B %d, %Y %I:%M %p') }}
+                            </p>
+                            
+                            {% if booking.status == 'confirmed' and booking.payment_status == 'paid' %}
+                            <div class="mt-3">
+                                <h5>Tickets</h5>
+                                <div class="row">
+                                    {% for ticket in booking.tickets %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <p class="mb-1"><strong>Ticket #:</strong> {{ ticket.ticket_number }}</p>
+                                                <p class="mb-1"><strong>Status:</strong> {{ ticket.status }}</p>
+                                                {% if ticket.qr_code %}
+                                                <img src="{{ ticket.qr_code }}" class="img-fluid" alt="QR Code">
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-3">
+                                {% if booking.status == 'confirmed' and booking.payment_status == 'paid' %}
+                                    {% if booking.is_cancellable() %}
+                                    <form method="POST" action="{{ url_for('booking.cancel_booking', booking_id=booking.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this booking?')">
+                                            Cancel Booking
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% elif booking.status == 'pending' and booking.payment_status == 'pending' %}
+                                    <a href="{{ url_for('booking.checkout', booking_id=booking.id) }}" class="btn btn-primary">
+                                        Complete Payment
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                You don't have any bookings yet. <a href="{{ url_for('events.list') }}">Browse events</a> to make a booking.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 
