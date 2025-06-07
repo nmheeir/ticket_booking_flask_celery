@@ -1,7 +1,7 @@
 from datetime import datetime
-from flask_login import UserMixin
+from flask_login import AnonymousUserMixin, UserMixin
 from flask import current_app
-from itsdangerous import URLSafeTimedSerializer as Serializer
+from itsdangerous import URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.utils.database import db
 from app.utils.permissions import Permission
@@ -24,6 +24,7 @@ class User(UserMixin, db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     is_confirmed = db.Column(db.Boolean, default=False)
+    confirmed_at = db.Column(db.DateTime)
 
     # Relationships
     bookings = db.relationship("Booking", backref="user", lazy=True)
@@ -65,14 +66,14 @@ class User(UserMixin, db.Model):
         """Check if user is administrator"""
         return self.can(Permission.MANAGE_USERS)
 
-    def generate_confirmation_token(self, expiration=3600):
-        """Generlate confirmation token"""
-        s = Serializer(current_app.config["SECRET_KEY"])
+    def generate_confirmation_token(self):
+        """Generate confirmation token"""
+        s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
         return s.dumps({"confirm": self.id}, salt='email-confirm-salt')
 
     def confirm_account(self, token, expiration=3600):
         """Confirm user account"""
-        s = Serializer(current_app.config["SECRET_KEY"])
+        s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
         try:
             data = s.loads(token, salt='email-confirm-salt', max_age=expiration)
         except:
@@ -80,6 +81,7 @@ class User(UserMixin, db.Model):
         if data.get("confirm") != self.id:
             return False
         self.is_confirmed = True
+        self.confirmed_at = datetime.utcnow()
         db.session.commit()
         return True
 
@@ -101,6 +103,7 @@ class User(UserMixin, db.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "is_confirmed": self.is_confirmed,
+            "confirmed_at": self.confirmed_at.isoformat() if self.confirmed_at else None,
         }
 
     @staticmethod
@@ -123,3 +126,17 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User {self.email}>"
+    
+class AnonymousUser(AnonymousUserMixin):
+    @property
+    def is_confirmed(self):
+        return False
+    
+    def can(self, permissions):
+        return False
+
+    def is_administrator(self):
+        return False
+
+    def ping(self):
+        pass

@@ -3,7 +3,7 @@ from flask import current_app, url_for
 from app.models.user import User
 from app.utils.database import db
 from app.celery.tasks.notification_tasks import send_email_notification
-from itsdangerous import Serializer
+from itsdangerous import URLSafeTimedSerializer
 
 class AuthService:
     @staticmethod
@@ -81,32 +81,32 @@ class AuthService:
             token (str): Confirmation token
             
         Returns:
-            tuple: (bool success, str message)
+            tuple: (bool success, str message, User object or None)
         """
         try:
             # Get user ID from token
-            s = Serializer(current_app.config['SECRET_KEY'])
-            data = s.loads(token)
+            s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+            data = s.loads(token, salt='email-confirm-salt', max_age=3600)  # 1 hour expiration
             user_id = data.get('confirm')
 
             if not user_id:
-                return False, "Invalid confirmation link"
+                return False, "Invalid confirmation link", None
 
             # Get user
             user = User.query.get(user_id)
             if not user:
-                return False, "User not found"
+                return False, "User not found", None
 
             if user.is_confirmed:
-                return True, "Account already confirmed"
+                return True, "Account already confirmed", user
 
             # Confirm user
             user.is_confirmed = True
             user.confirmed_at = datetime.utcnow()
             db.session.commit()
 
-            return True, "Your account has been confirmed successfully"
+            return True, "Your account has been confirmed successfully", user
 
         except Exception as e:
             current_app.logger.error(f"Error in email confirmation: {str(e)}")
-            return False, "The confirmation link is invalid or has expired" 
+            return False, "The confirmation link is invalid or has expired", None 

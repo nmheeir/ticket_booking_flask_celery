@@ -56,29 +56,35 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.index'))
 
-# @auth_bp.before_app_request
-# def before_request():
-#     if current_user.is_authenticated and not current_user.is_confirmed:
-#         flash('Please confirm your account first.', 'warning')
-#         return redirect(url_for('auth.unconfirm'))
+@auth_bp.before_app_request
+def before_request():
+    if current_user.is_authenticated and not current_user.is_confirmed \
+        and request.blueprint != 'auth' \
+        and request.endpoint != 'static':
+        return redirect(url_for('auth.unconfirmed'))
 
 @auth_bp.route('/confirm/<token>')
 def confirm_email(token):
     """Confirm user's email address"""
-    if current_user.is_confirmed:
+    if current_user.is_authenticated and current_user.is_confirmed:
+        flash('Your account is already confirmed.', 'info')
         return redirect(url_for('main.index'))
         
-    success, message = AuthService.confirm_email(token)
+    success, message, user = AuthService.confirm_email(token)
     flash(message, 'success' if success else 'danger')
     
+    if success and user and not current_user.is_authenticated:
+        login_user(user)
+        
     if success:
         return redirect(url_for('main.index'))
     return redirect(url_for('auth.unconfirmed'))
 
 @auth_bp.route('/unconfirmed')
-@login_required
 def unconfirmed():
     """Show unconfirmed page"""
+    if current_user.is_anonymous:
+        return redirect(url_for('auth.login'))
     if current_user.is_confirmed:
         return redirect(url_for('main.index'))
     return render_template('auth/unconfirmed.html')
@@ -100,15 +106,11 @@ def resend_confirmation():
         subject='Please Confirm Your Account',
         template_name='mail/registration_confirmation.html',
         context={
-            'user': current_user,
+            'user': current_user.to_dict(),
             'confirmation_url': confirmation_url,
             'year': datetime.utcnow().year
         }
     )
     
     flash('A new confirmation email has been sent to your email address.', 'info')
-    return redirect(url_for('auth.unconfirmed')) 
-
-@auth_bp.route('/unconfirm')
-def unconfirm():
-    return render_template('auth/unconfirmed.html')
+    return redirect(url_for('auth.unconfirmed'))

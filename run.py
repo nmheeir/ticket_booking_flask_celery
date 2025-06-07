@@ -3,7 +3,7 @@ from flask import Flask
 from app.config import config
 from app.utils.database import init_db
 from app.utils.filters import register_filters
-from app.models.user import User
+from app.models.user import AnonymousUser, User
 from app.utils.init_roles import init_roles
 from app.extensions import mail, csrf, login_manager, init_celery
 
@@ -23,6 +23,7 @@ def create_app(config_name=None):
     init_celery(app)
     
     login_manager.login_view = "auth.login"
+    login_manager.anonymous_user = AnonymousUser
 
     @login_manager.user_loader
     def load_user(user_id):
