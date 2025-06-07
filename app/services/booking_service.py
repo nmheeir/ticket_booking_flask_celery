@@ -3,13 +3,14 @@ from app.models.booking import Booking
 from app.models.event import Event
 from app.utils.database import db, commit_changes
 from app.services.payment_service import PaymentService
+from app.services.email_service import EmailService
 from app.celery.tasks.booking_tasks import process_booking, cancel_expired_bookings, generate_booking_report
 
 class BookingService:
     @staticmethod
     def create_booking(user_id, event_id, quantity):
         """
-        Create a new booking and initiate asynchronous processing
+        Create a new booking in pending state
         
         Args:
             user_id (int): ID of the user making the booking
@@ -17,7 +18,7 @@ class BookingService:
             quantity (int): Number of tickets to book
             
         Returns:
-            dict: Contains booking details and payment information
+            dict: Contains booking details
             
         Raises:
             ValueError: If event not found, sold out, or insufficient tickets
@@ -36,7 +37,7 @@ class BookingService:
         # Calculate total amount
         total_amount = event.price * quantity
 
-        # Create booking record
+        # Create booking record in pending state
         booking = Booking(
             user_id=user_id,
             event_id=event_id,
@@ -47,16 +48,52 @@ class BookingService:
         db.session.add(booking)
         commit_changes()
 
-        # Create payment intent
-        payment_data = PaymentService.create_payment_intent(booking.id, 123, 123, 123)
-        
-        # Trigger asynchronous booking processing
-        process_booking.delay(booking.id)
+        # Schedule booking expiration check after 10 minutes
+        cancel_expired_bookings.apply_async(countdown=600)  # 600 seconds = 10 minutes
 
         return {
-            'booking': booking.to_dict(),
-            'payment': payment_data
+            'booking': booking.to_dict()
         }
+
+    @staticmethod
+    def complete_payment(booking_id, payment_data):
+        """
+        Complete payment and process booking
+        
+        Args:
+            booking_id (int): ID of the booking
+            payment_data (dict): Payment processing result
+            
+        Returns:
+            dict: Updated booking details
+        """
+        booking = Booking.query.get(booking_id)
+        if not booking:
+            raise ValueError('Booking not found')
+
+        if booking.payment_status != 'pending':
+            raise ValueError('Invalid booking status')
+
+        # Mark booking as paid
+        booking.mark_as_paid(payment_data['payment_id'])
+        booking.confirm()
+        commit_changes()
+
+        # Process booking (generate tickets, etc)
+        process_booking.delay(booking.id)
+
+        # Send confirmation email only after successful payment
+        EmailService.send_email(
+            recipient_email=booking.user.email,
+            subject='Booking Confirmation - Payment Successful',
+            template_name='mail/booking_confirmation.html',
+            context={
+                'booking': booking.to_dict(),
+                'event': booking.event.to_dict()
+            }
+        )
+
+        return booking.to_dict()
 
     @staticmethod
     def get_user_bookings(user_id):
@@ -85,7 +122,7 @@ class BookingService:
         return Booking.query.filter_by(event_id=event_id).all()
 
     @staticmethod
-    def cancel_booking(booking_id, user_id):
+    def cancel_booking(booking_number, user_id):
         """
         Cancel a booking and process refund
         
@@ -100,7 +137,7 @@ class BookingService:
             ValueError: If booking not found, unauthorized, or cannot be cancelled
         """
         # Validate booking and permissions
-        booking = Booking.query.get(booking_id)
+        booking = Booking.query.filter_by(booking_number=booking_number).first_or_404()
         if not booking:
             raise ValueError('Booking not found')
 

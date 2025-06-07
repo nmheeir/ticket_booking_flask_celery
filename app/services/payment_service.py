@@ -6,13 +6,14 @@ from app.utils.database import db
 
 class PaymentService:
     @staticmethod
-    def process_payment(amount, card_number, expiry, cvv):
+    def process_payment(amount, card_number, expiry, cvv, booking_id):
         """Process payment (mock implementation)"""
         # In production: Gọi Stripe API ở đây
         payment_id = str(uuid.uuid4())
 
         payment = Payment(
             id=payment_id,
+            booking_id=booking_id,
             amount=amount,
             status='paid',
             method='card',

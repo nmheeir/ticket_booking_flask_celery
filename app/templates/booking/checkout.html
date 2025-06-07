@@ -9,7 +9,8 @@
             <!-- Progress Stepper -->
             <div class="checkout-progress mb-4">
                 <div class="progress">
-                    <div class="progress-bar" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar" role="progressbar" style="width: 50%;" aria-valuenow="50"
+                        aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
                 <div class="d-flex justify-content-between mt-2">
                     <span class="active"><i class="fas fa-shopping-cart"></i> Booking Created</span>
@@ -20,34 +21,46 @@
 
             <!-- Expiration Timer -->
             <div class="alert alert-warning mb-4">
-                <i class="fas fa-clock"></i> Time remaining to complete payment: 
-                <strong id="checkout-timer" data-created="{{ booking.created_at.isoformat() }}">30:00</strong>
+                <i class="fas fa-clock"></i> Time remaining to complete payment:
+                <strong id="checkout-timer" data-remaining="{{ remaining_seconds }}">
+                    {{ "%02d:%02d"|format(remaining_seconds // 60, remaining_seconds % 60) }}
+                </strong>
             </div>
 
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0"><i class="fas fa-shopping-cart"></i> Complete Your Booking</h3>
-                </div>
                 <div class="card-body">
+                    <!-- Booking Summary -->
                     <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h4><i class="fas fa-calendar-alt"></i> Event Details</h4>
-                            <div class="event-details p-3 bg-light rounded">
-                                <p><strong>Event:</strong> {{ booking.event.title }}</p>
-                                <p><strong>Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}</p>
-                                <p><strong>Venue:</strong> {{ booking.event.venue }}</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h4><i class="fas fa-ticket-alt"></i> Booking Details</h4>
-                            <div class="booking-details p-3 bg-light rounded">
-                                <p><strong>Booking Number:</strong> {{ booking.booking_number }}</p>
-                                <p><strong>Number of Tickets:</strong> {{ booking.quantity }}</p>
-                                <p><strong>Total Amount:</strong> <span class="text-primary h5">{{ booking.total_amount | format_price }}</span></p>
+                        <div class="col-md-12">
+                            <h4><i class="fas fa-ticket-alt"></i> Booking Summary</h4>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <tr>
+                                        <th>Event:</th>
+                                        <td>{{ booking.event.title }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Date:</th>
+                                        <td>{{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Venue:</th>
+                                        <td>{{ booking.event.venue }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Quantity:</th>
+                                        <td>{{ booking.quantity }} ticket(s)</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Total Amount:</th>
+                                        <td><strong>{{ booking.total_amount | format_price }}</strong></td>
+                                    </tr>
+                                </table>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Payment Form -->
                     <div class="row mb-4">
                         <div class="col-md-12">
                             <h4><i class="fas fa-credit-card"></i> Payment Information</h4>
@@ -85,10 +98,12 @@
                                 </div>
                                 <div class="d-grid gap-2">
                                     <button type="submit" class="btn btn-primary btn-lg" id="submit-button">
-                                        <i class="fas fa-lock"></i> Pay Securely {{ booking.total_amount | format_price }}
+                                        <i class="fas fa-lock"></i> Pay Securely {{ booking.total_amount | format_price
+                                        }}
                                     </button>
-                                    <a href="{{ url_for('booking.my_bookings') }}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-arrow-left"></i> Back to My Bookings
+                                    <a href="{{ url_for('events.detail', event_id=booking.event.id) }}"
+                                        class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Event
                                     </a>
                                 </div>
                             </form>
@@ -100,9 +115,11 @@
                             <div class="alert alert-info">
                                 <h5><i class="fas fa-info-circle"></i> Important Information:</h5>
                                 <ul class="mb-0">
-                                    <li>Your booking will be held for 30 minutes.</li>
-                                    <li>Tickets will be issued immediately after successful payment.</li>
-                                    <li>You can view and download your tickets from the My Bookings page.</li>
+                                    <li>Your booking will be held for 10 minutes only.</li>
+                                    <li>The booking will be automatically cancelled if payment is not completed within
+                                        this time.</li>
+                                    <li>Tickets will be issued and emailed to you immediately after successful payment.
+                                    </li>
                                     <li>Cancellation is available up to 24 hours before the event.</li>
                                     <li>For any issues, please contact our support team.</li>
                                 </ul>
@@ -118,64 +135,93 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('payment-form');
-    const submitButton = document.getElementById('submit-button');
-    const timer = document.getElementById('checkout-timer');
-    
-    // Payment form submission
-    form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Payment...';
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('payment-form');
+        const submitButton = document.getElementById('submit-button');
+        const timerElement = document.getElementById('checkout-timer');
 
-        // Here you would typically integrate with a payment gateway
-        setTimeout(() => form.submit(), 1500); // Simulated processing delay
-    });
+        // Timer functionality
+        function startTimer(duration, display) {
+            let timer = duration;
+            const countdown = setInterval(function () {
+                const minutes = parseInt(timer / 60, 10);
+                const seconds = parseInt(timer % 60, 10);
 
-    // Checkout timer
-    function updateTimer() {
-        const created = new Date(timer.dataset.created);
-        const expiresAt = new Date(created.getTime() + 30 * 60000); // 30 minutes
-        const now = new Date();
-        const timeLeft = expiresAt - now;
+                display.textContent = minutes.toString().padStart(2, '0') + ':' +
+                    seconds.toString().padStart(2, '0');
 
-        if (timeLeft <= 0) {
-            window.location.href = "{{ url_for('booking.my_bookings') }}";
-            return;
+                if (--timer < 0) {
+                    clearInterval(countdown);
+                    display.textContent = 'EXPIRED';
+                    submitButton.disabled = true;
+
+                    // Show alert message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger mt-3';
+                    alertDiv.innerHTML = '<strong>Session Expired!</strong> You will be redirected to My Bookings page in 10 seconds.';
+                    form.insertBefore(alertDiv, form.firstChild);
+
+                    // Add a longer delay and countdown before redirect
+                    let redirectCountdown = 10;
+                    const redirectTimer = setInterval(() => {
+                        redirectCountdown--;
+                        if (redirectCountdown <= 0) {
+                            clearInterval(redirectTimer);
+                            window.location.href = "{{ url_for('booking.my_bookings') }}";
+                        } else {
+                            alertDiv.innerHTML = `<strong>Session Expired!</strong> You will be redirected to My Bookings page in ${redirectCountdown} seconds.`;
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+
+            return countdown;
         }
 
-        const minutes = Math.floor(timeLeft / 60000);
-        const seconds = Math.floor((timeLeft % 60000) / 1000);
-        timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
+        // Get remaining time from server
+        const remainingSeconds = parseInt(timerElement.dataset.remaining);
 
-    // Update timer every second
-    setInterval(updateTimer, 1000);
-    updateTimer();
+        // If already expired, show expired status with proper message
+        if (remainingSeconds <= 0) {
+            timerElement.textContent = 'EXPIRED';
+            submitButton.disabled = true;
 
-    // Form validation
-    const cardNumber = document.querySelector('[name="card_number"]');
-    const expiry = document.querySelector('[name="expiry"]');
-    const cvv = document.querySelector('[name="cvv"]');
+            // Show alert message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger mt-3';
+            alertDiv.innerHTML = '<strong>Session Expired!</strong> You will be redirected to My Bookings page in 10 seconds.';
+            form.insertBefore(alertDiv, form.firstChild);
 
-    cardNumber.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        value = value.replace(/(\d{4})/g, '$1 ').trim();
-        e.target.value = value.substring(0, 19);
-    });
+            // Add a longer delay before redirect
+            let redirectCountdown = 10;
+            const redirectTimer = setInterval(() => {
+                redirectCountdown--;
+                if (redirectCountdown <= 0) {
+                    clearInterval(redirectTimer);
+                    window.location.href = "{{ url_for('booking.my_bookings') }}";
+                } else {
+                    alertDiv.innerHTML = `<strong>Session Expired!</strong> You will be redirected to My Bookings page in ${redirectCountdown} seconds.`;
+                }
+            }, 1000);
+        } else {
+            // Start the countdown
+            const countdownInterval = startTimer(remainingSeconds, timerElement);
 
-    expiry.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 2) {
-            value = value.substring(0, 2) + '/' + value.substring(2);
+            // Clear interval if user leaves the page
+            window.addEventListener('beforeunload', function () {
+                clearInterval(countdownInterval);
+            });
         }
-        e.target.value = value.substring(0, 5);
-    });
 
-    cvv.addEventListener('input', function(e) {
-        e.target.value = e.target.value.replace(/\D/g, '').substring(0, 3);
+        // Payment form submission
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Payment...';
+
+            // Submit the form after showing processing state
+            setTimeout(() => form.submit(), 1500);
+        });
     });
-});
 </script>
-{% endblock %} 
+{% endblock %}

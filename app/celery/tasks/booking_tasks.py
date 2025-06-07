@@ -77,10 +77,10 @@ def process_booking(self, booking_id):
 @celery.task(name="tasks.cancel_expired_bookings")
 def cancel_expired_bookings():
     """
-    Cancel all unpaid bookings that have exceeded the payment timeout
+    Cancel all unpaid bookings that have exceeded the payment timeout (10 minutes)
 
     This task:
-    1. Identifies expired bookings (pending payment > 30 minutes)
+    1. Identifies expired bookings (pending payment > 10 minutes)
     2. Returns tickets to event inventory
     3. Updates booking status to cancelled
     4. Sends cancellation notifications
@@ -88,8 +88,8 @@ def cancel_expired_bookings():
     Returns:
         dict: Summary of cancelled bookings
     """
-    # Calculate expiration threshold (30 minutes ago)
-    expiration_time = datetime.utcnow() - timedelta(minutes=30)
+    # Calculate expiration threshold (10 minutes ago)
+    expiration_time = datetime.utcnow() - timedelta(minutes=10)
 
     # Find all expired bookings
     expired_bookings = Booking.query.filter(
@@ -109,12 +109,16 @@ def cancel_expired_bookings():
             booking.cancel()
             commit_changes()
 
-            # Notify user about booking cancellation
+            # Notify user about booking cancellation due to payment timeout
             EmailService.send_email(
                 booking.user.email,
-                "Booking Cancellation",
-                "booking_cancellation.html",
-                {"booking": booking},
+                "Booking Cancelled - Payment Timeout",
+                "mail/booking_timeout_cancellation.html",
+                {
+                    "booking": booking.to_dict(),
+                    "event": event.to_dict(),
+                    "reason": "Payment not completed within 10 minutes"
+                }
             )
 
             cancelled_count += 1

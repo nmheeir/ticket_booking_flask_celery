@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Cancelled - Payment Timeout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Booking Cancelled</h2>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ booking.user.first_name }},</p>
+        
+        <p>Unfortunately, your booking (Booking #{{ booking.booking_number }}) for <strong>{{ event.title }}</strong> has been cancelled because the payment was not completed within the 10-minute time limit.</p>
+        
+        <h3>Booking Details:</h3>
+        <ul>
+            <li>Event: {{ event.title }}</li>
+            <li>Date: {{ event.event_date.strftime('%B %d, %Y %I:%M %p') }}</li>
+            <li>Quantity: {{ booking.quantity }} ticket(s)</li>
+            <li>Total Amount: {{ booking.total_amount | format_price }}</li>
+        </ul>
+        
+        <p>If you still wish to attend this event, please make a new booking and complete the payment within the specified time limit.</p>
+        
+        <a href="{{ url_for('events.detail', event_id=event.id, _external=True) }}" class="button">Book Again</a>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated message, please do not reply to this email.</p>
+        <p>&copy; {{ year }} Ticket Booking System. All rights reserved.</p>
+    </div>
+</body>
+</html> 
