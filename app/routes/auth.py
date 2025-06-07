@@ -4,6 +4,9 @@ from werkzeug.security import generate_password_hash
 from app.models.user import User
 from app.utils.database import db, commit_changes
 from app.forms.auth import LoginForm, RegistrationForm
+from app.services.auth_service import AuthService
+from app.celery.tasks.notification_tasks import send_email_notification
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,25 +27,26 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    """Handle user registration"""
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(
+        user, message = AuthService.register_user(
             email=form.email.data,
             password=form.password.data,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
             phone=form.phone.data
         )
-        db.session.add(user)
-        try:
-            commit_changes()
-            flash('Registration successful! Please login.', 'success')
+        
+        if user:
+            flash(message, 'success')
             return redirect(url_for('auth.login'))
-        except Exception as e:
-            flash('Registration failed. Please try again.', 'danger')
+        else:
+            flash(message, 'danger')
+
     return render_template('auth/register.html', form=form)
 
 @auth_bp.route('/logout')
@@ -50,4 +54,61 @@ def register():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('main.index')) 
+    return redirect(url_for('main.index'))
+
+# @auth_bp.before_app_request
+# def before_request():
+#     if current_user.is_authenticated and not current_user.is_confirmed:
+#         flash('Please confirm your account first.', 'warning')
+#         return redirect(url_for('auth.unconfirm'))
+
+@auth_bp.route('/confirm/<token>')
+def confirm_email(token):
+    """Confirm user's email address"""
+    if current_user.is_confirmed:
+        return redirect(url_for('main.index'))
+        
+    success, message = AuthService.confirm_email(token)
+    flash(message, 'success' if success else 'danger')
+    
+    if success:
+        return redirect(url_for('main.index'))
+    return redirect(url_for('auth.unconfirmed'))
+
+@auth_bp.route('/unconfirmed')
+@login_required
+def unconfirmed():
+    """Show unconfirmed page"""
+    if current_user.is_confirmed:
+        return redirect(url_for('main.index'))
+    return render_template('auth/unconfirmed.html')
+
+@auth_bp.route('/resend-confirmation')
+@login_required
+def resend_confirmation():
+    """Resend confirmation email"""
+    if current_user.is_confirmed:
+        flash('Your account is already confirmed.', 'info')
+        return redirect(url_for('main.index'))
+        
+    token = current_user.generate_confirmation_token()
+    confirmation_url = url_for('auth.confirm_email', token=token, _external=True)
+    
+    # Send confirmation email using Celery task
+    send_email_notification.delay(
+        recipient_email=current_user.email,
+        subject='Please Confirm Your Account',
+        template_name='mail/registration_confirmation.html',
+        context={
+            'user': current_user,
+            'confirmation_url': confirmation_url,
+            'year': datetime.utcnow().year
+        }
+    )
+    
+    flash('A new confirmation email has been sent to your email address.', 'info')
+    return redirect(url_for('auth.unconfirmed')) 
+
+@auth_bp.route('/unconfirm')
+def unconfirm():
+    return render_template('auth/unconfirmed.html')

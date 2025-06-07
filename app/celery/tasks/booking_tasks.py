@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from app.tasks.celery_app import celery
+from app.extensions import celery
 from app.models.booking import Booking
 from app.models.event import Event
 from app.models.ticket import Ticket

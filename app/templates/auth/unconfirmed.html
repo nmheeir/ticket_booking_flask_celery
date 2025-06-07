@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0">Email Confirmation Required</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h4 class="alert-heading">Hello {{ current_user.full_name }}!</h4>
+                        <p>You have not confirmed your account yet. Before you can access all features, you need to confirm your email address.</p>
+                        <hr>
+                        <p class="mb-0">Please check your email for the confirmation link. If you haven't received the email, you can request a new one.</p>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-primary">
+                            Resend Confirmation Email
+                        </a>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>Haven't received the email?</h5>
+                        <ul>
+                            <li>Check your spam folder</li>
+                            <li>Make sure you entered the correct email address</li>
+                            <li>Wait a few minutes and try again</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

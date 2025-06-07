@@ -18,8 +18,8 @@ class Config:
     REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
     
     # Celery
-    CELERY_BROKER_URL = REDIS_URL
-    CELERY_RESULT_BACKEND = REDIS_URL
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
     
     # # Stripe
     # STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')

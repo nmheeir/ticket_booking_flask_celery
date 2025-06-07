@@ -1,11 +1,11 @@
 from flask import current_app, render_template
-from flask_mail import Message, Mail
+from flask_mail import Message
+from run import mail
 
 class NotificationService:
     @staticmethod
     def send_email(recipient_email, subject, template_name, context):
         """Send email using Flask-Mail"""
-        mail = Mail(current_app)
         msg = Message(
             subject=subject,
             recipients=[recipient_email],

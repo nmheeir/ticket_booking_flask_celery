@@ -18,7 +18,6 @@ services:
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=development
-      - REDIS_URL=redis://redis:6379/0
       - FLASK_DEBUG=1
     depends_on:
       - redis
@@ -35,6 +34,21 @@ services:
       - .env
     depends_on:
       - web
+      - redis
+
+  flower:
+    build: .
+    command: celery -A celery_worker.celery flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./app:/app/app
+      - ./instance:/app/instance
+      - ./celery_worker.py:/app/celery_worker.py
+    env_file:
+      - .env
+    depends_on:
+      - celery_worker
       - redis
 
   # db:
