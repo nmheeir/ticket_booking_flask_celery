@@ -4,12 +4,13 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8">
-        <div class="card">
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
             {% if event.image_url %}
-            <img src="{{ event.image_url }}" class="card-img-top" alt="{{ event.title }}">
+            <img src="{{ event.image_url }}" class="card-img-top event-image" alt="{{ event.title }}">
             {% else %}
-            <img src="{{ url_for('static', filename='images/default-event.jpg') }}" class="card-img-top" alt="Default Event Image">
+            <img src="{{ url_for('static', filename='images/default-event.jpg') }}" class="card-img-top event-image"
+                alt="Default Event Image">
             {% endif %}
             <div class="card-body">
                 <h2 class="card-title">{{ event.title }}</h2>
@@ -23,17 +24,17 @@
                     <ul class="list-unstyled">
                         <li class="mb-2">
                             <i class="fas fa-calendar"></i>
-                            <strong>Date & Time:</strong>
+                            <strong> Date & Time: </strong>
                             {{ event.event_date.strftime('%B %d, %Y %I:%M %p') }}
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-map-marker-alt"></i>
-                            <strong>Venue:</strong>
+                            <strong> Venue: </strong>
                             {{ event.venue }}
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-ticket-alt"></i>
-                            <strong>Available Tickets:</strong>
+                            <strong> Available Tickets: </strong>
                             {% if event.available_tickets > 0 %}
                             <span class="text-success">{{ event.available_tickets }} tickets</span>
                             {% else %}
@@ -45,39 +46,41 @@
             </div>
         </div>
     </div>
-    
-    <div class="col-md-4">
-        <div class="card">
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
             <div class="card-body">
                 <h4 class="card-title">Book Tickets</h4>
                 {% if event.available_tickets > 0 %}
-                    <form method="POST" action="{{ url_for('booking.create_booking', event_id=event.id) }}">
-                        {{ form.csrf_token }}
-                        <div class="mb-3">
-                            <label for="quantity" class="form-label">Number of Tickets</label>
-                            {{ form.quantity(class="form-control", min=1, max=event.available_tickets) }}
-                            {% if form.quantity.errors %}
-                                {% for error in form.quantity.errors %}
-                                    <div class="text-danger">{{ error }}</div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <p class="mb-1">Price per ticket: <strong>{{ event.price | format_price }}</strong></p>
-                            <p class="mb-1">Total amount: <strong id="total-amount">{{ event.price | format_price }}</strong></p>
-                        </div>
-                        <div class="d-grid">
-                            {% if current_user.is_authenticated %}
-                                <button type="submit" class="btn btn-primary">Book Now</button>
-                            {% else %}
-                                <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-primary">Login to Book</a>
-                            {% endif %}
-                        </div>
-                    </form>
-                {% else %}
-                    <div class="alert alert-danger">
-                        Sorry, this event is sold out.
+                <form method="POST" action="{{ url_for('booking.create_booking', event_id=event.id) }}">
+                    {{ form.csrf_token }}
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Number of Tickets</label>
+                        {{ form.quantity(class="form-control", id="quantity", min=1, max=event.available_tickets) }}
+                        {% if form.quantity.errors %}
+                        {% for error in form.quantity.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                        {% endif %}
                     </div>
+                    <div class="mb-3">
+                        <p class="mb-1">Price per ticket: <strong>{{ event.price | format_price }}</strong></p>
+                        <p class="mb-1">Total amount: <strong id="total-amount">{{ event.price | format_price
+                                }}</strong></p>
+                    </div>
+                    <div class="d-grid">
+                        {% if current_user.is_authenticated %}
+                        <button type="submit" class="btn btn-primary">Book Now</button>
+                        {% else %}
+                        <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-primary">Login to
+                            Book</a>
+                        {% endif %}
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-danger">
+                    Sorry, this event is sold out.
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -87,17 +90,27 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    .event-image {
+        height: 200px;
+        object-fit: cover;
+        width: 100%;
+        border-top-left-radius: .25rem;
+        border-top-right-radius: .25rem;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const quantityInput = document.getElementById('quantity');
-    const totalAmount = document.getElementById('total-amount');
-    const pricePerTicket = {{ event.price }};
+    document.addEventListener('DOMContentLoaded', function () {
+        const quantityInput = document.getElementById('quantity');
+        const totalAmount = document.getElementById('total-amount');
+        const pricePerTicket = {{ event.price | tojson
+    }};
 
     if (quantityInput && totalAmount) {
-        quantityInput.addEventListener('change', function() {
+        quantityInput.addEventListener('input', function () {
             const quantity = parseInt(this.value) || 0;
             const total = quantity * pricePerTicket;
             totalAmount.textContent = '$' + total.toFixed(2);
@@ -105,4 +118,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %} 
+{% endblock %}

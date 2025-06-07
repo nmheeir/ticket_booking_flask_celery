@@ -9,7 +9,10 @@ from app.extensions import mail, csrf, login_manager, init_celery
 
 def create_app(config_name=None):
     """Create Flask application"""
-    app = Flask(__name__)
+    app = Flask(__name__, 
+                template_folder="templates",
+                static_folder="static",
+                root_path=os.path.join(os.path.dirname(__file__), "app"))
 
     if config_name is None:
         config_name = os.getenv("FLASK_ENV", "development")

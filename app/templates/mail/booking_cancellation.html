@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 0 0 5px 5px;
+        }
+        .booking-details {
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .refund-info {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Booking Cancellation Confirmation</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ booking.user.first_name }},</p>
+        
+        <p>Your booking has been successfully cancelled as requested.</p>
+        
+        <div class="booking-details">
+            <h3>Cancelled Booking Details</h3>
+            <p><strong>Event:</strong> {{ booking.event.title }}</p>
+            <p><strong>Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y') }}</p>
+            <p><strong>Time:</strong> {{ booking.event.event_date.strftime('%I:%M %p') }}</p>
+            <p><strong>Venue:</strong> {{ booking.event.venue }}</p>
+            <p><strong>Booking Number:</strong> {{ booking.booking_number }}</p>
+            <p><strong>Number of Tickets:</strong> {{ booking.quantity }}</p>
+            <p><strong>Total Amount:</strong> {{ "%.2f"|format(booking.total_amount) }}</p>
+        </div>
+        
+        {% if booking.payment_status == 'refunded' %}
+        <div class="refund-info">
+            <h3>Refund Information</h3>
+            <p>A refund of {{ "%.2f"|format(booking.total_amount) }} has been initiated to your original payment method.</p>
+            <p>Please allow 5-7 business days for the refund to appear in your account.</p>
+        </div>
+        {% endif %}
+        
+        <p>If you have any questions about your cancellation or refund, please don't hesitate to contact our support team.</p>
+        
+        <p>We hope to see you at another event soon!</p>
+        
+        <p>Best regards,<br>The Ticket Booking Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated message, please do not reply to this email.</p>
+        <p>&copy; {{ year }} Ticket Booking System. All rights reserved.</p>
+    </div>
+</body>
+</html>

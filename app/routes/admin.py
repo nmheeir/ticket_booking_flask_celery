@@ -151,3 +151,9 @@ def reports():
         daily_bookings=daily_bookings,
         revenue_by_event=revenue_by_event,
     )
+    
+@admin_bp.route("user_detail/int:user_id")
+@permission_required(Permission.VIEW_ALL_BOOKINGS)
+def user_detail(user_id):
+    user = User.query.get_or_404(user_id)
+    return render_template("admin/user_detail.html", user=user)

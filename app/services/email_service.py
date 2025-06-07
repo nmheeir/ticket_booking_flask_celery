@@ -1,7 +1,8 @@
+from datetime import datetime
 from flask import render_template, current_app
 from flask_mail import Message
 from app.extensions import mail
-import os, logging
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -9,17 +10,40 @@ logger = logging.getLogger(__name__)
 class EmailService:
     @staticmethod
     def send_email(recipient_email, subject, template_name, context):
-        """Send email using Flask-Mail"""
+        """
+        Send an email using Flask-Mail
+        
+        Args:
+            recipient_email (str): Email address of the recipient
+            subject (str): Email subject
+            template_name (str): Name of the template file (e.g. 'mail/registration_confirmation.html')
+            context (dict): Context variables for the template
+            
+        Returns:
+            bool: True if email was sent successfully, False otherwise
+        """
         try:
+            # Add current year to context for all templates
+            if 'year' not in context:
+                context['year'] = datetime.utcnow().year
+
             logger.info(f"Preparing to send email to {recipient_email}")
             logger.info(f"Subject: {subject}")
             logger.info(f"Using template: {template_name}")
             
+            # Get mail sender from config
+            mail_sender = current_app.config.get('MAIL_DEFAULT_SENDER')
+            if not mail_sender:
+                logger.error("MAIL_DEFAULT_SENDER not configured")
+                return False
+            
             msg = Message(
                 subject=subject,
                 recipients=[recipient_email],
-                sender=os.getenv('MAIL_DEFAULT_SENDER')
+                sender=mail_sender
             )
+            
+            # Render template with context
             msg.html = render_template(template_name, **context)
             
             logger.info("Email content rendered successfully")

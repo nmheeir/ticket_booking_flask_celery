@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Bookings - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-ticket-alt"></i> Manage Bookings</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" id="generate-report">
+                <i class="fas fa-file-alt"></i> Generate Report
+            </button>
+            <button class="btn btn-outline-warning" id="cleanup-expired">
+                <i class="fas fa-broom"></i> Cleanup Expired
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="booking-filters" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Payment Status</label>
+                    <select class="form-select" name="payment_status">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="refunded">Refunded</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date Range</label>
+                    <input type="date" class="form-control" name="start_date">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <input type="date" class="form-control" name="end_date">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Bookings</h5>
+                    <h2 class="mb-0">{{ bookings|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Confirmed Bookings</h5>
+                    <h2 class="mb-0">{{ bookings|selectattr('status', 'equalto', 'confirmed')|list|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Bookings</h5>
+                    <h2 class="mb-0">{{ bookings|selectattr('status', 'equalto', 'pending')|list|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Cancelled Bookings</h5>
+                    <h2 class="mb-0">{{ bookings|selectattr('status', 'equalto', 'cancelled')|list|length }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="bookings-table">
+                    <thead>
+                        <tr>
+                            <th>Booking #</th>
+                            <th>Event</th>
+                            <th>User</th>
+                            <th>Tickets</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in bookings %}
+                        <tr>
+                            <td>{{ booking.booking_number }}</td>
+                            <td>
+                                <a href="{{ url_for('events.detail', event_id=booking.event.id) }}">
+                                    {{ booking.event.title }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin.user_detail', user_id=booking.user.id) }}">
+                                    {{ booking.user.email }}
+                                </a>
+                            </td>
+                            <td>{{ booking.quantity }}</td>
+                            <td>{{ booking.total_amount | format_price }}</td>
+                            <td>
+                                <span class="badge {% if booking.status == 'confirmed' %}bg-success{% elif booking.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ booking.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if booking.payment_status == 'paid' %}bg-success{% elif booking.payment_status == 'pending' %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ booking.payment_status }}
+                                </span>
+                            </td>
+                            <td>{{ booking.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary view-details" data-booking-id="{{ booking.id }}">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if booking.status == 'pending' %}
+                                    <button type="button" class="btn btn-sm btn-outline-success confirm-booking" data-booking-id="{{ booking.id }}">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if booking.status != 'cancelled' %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger cancel-booking" data-booking-id="{{ booking.id }}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Details Modal -->
+<div class="modal fade" id="booking-details-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal fade" id="report-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Booking Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="report-form">
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <div class="input-group">
+                            <input type="date" class="form-control" name="report_start_date" required>
+                            <span class="input-group-text">to</span>
+                            <input type="date" class="form-control" name="report_end_date" required>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-file-download"></i> Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const bookingsTable = document.getElementById('bookings-table');
+    const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
+    const detailsModal = new bootstrap.Modal(document.getElementById('booking-details-modal'));
+
+    // Initialize DataTable
+    $(bookingsTable).DataTable({
+        order: [[7, 'desc']], // Sort by created_at by default
+        pageLength: 25
+    });
+
+    // Generate Report
+    document.getElementById('generate-report').addEventListener('click', () => {
+        reportModal.show();
+    });
+
+    document.getElementById('report-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const startDate = formData.get('report_start_date');
+        const endDate = formData.get('report_end_date');
+
+        try {
+            const response = await fetch('/admin/api/bookings/report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ start_date: startDate, end_date: endDate })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `booking-report-${startDate}-to-${endDate}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                reportModal.hide();
+            } else {
+                throw new Error('Failed to generate report');
+            }
+        } catch (error) {
+            alert('Error generating report: ' + error.message);
+        }
+    });
+
+    // Cleanup Expired Bookings
+    document.getElementById('cleanup-expired').addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to cleanup expired bookings?')) return;
+
+        try {
+            const response = await fetch('/admin/api/bookings/cleanup', { method: 'POST' });
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert(`Cleaned up ${result.cancelled_bookings} expired bookings`);
+                location.reload();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            alert('Error cleaning up bookings: ' + error.message);
+        }
+    });
+
+    // View Booking Details
+    document.querySelectorAll('.view-details').forEach(button => {
+        button.addEventListener('click', async () => {
+            const bookingId = button.dataset.bookingId;
+            try {
+                const response = await fetch(`/admin/api/bookings/${bookingId}`);
+                const booking = await response.json();
+                
+                if (response.ok) {
+                    const modalBody = document.querySelector('#booking-details-modal .modal-body');
+                    modalBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Event Information</h5>
+                                <p><strong>Event:</strong> ${booking.event.title}</p>
+                                <p><strong>Date:</strong> ${new Date(booking.event.event_date).toLocaleString()}</p>
+                                <p><strong>Venue:</strong> ${booking.event.venue}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>User Information</h5>
+                                <p><strong>Name:</strong> ${booking.user.name}</p>
+                                <p><strong>Email:</strong> ${booking.user.email}</p>
+                                <p><strong>Phone:</strong> ${booking.user.phone || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h5>Tickets</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Ticket Number</th>
+                                                <th>Status</th>
+                                                <th>Created At</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${booking.tickets.map(ticket => `
+                                                <tr>
+                                                    <td>${ticket.ticket_number}</td>
+                                                    <td>${ticket.status}</td>
+                                                    <td>${new Date(ticket.created_at).toLocaleString()}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    detailsModal.show();
+                } else {
+                    throw new Error(booking.message);
+                }
+            } catch (error) {
+                alert('Error loading booking details: ' + error.message);
+            }
+        });
+    });
+
+    // Confirm Booking
+    document.querySelectorAll('.confirm-booking').forEach(button => {
+        button.addEventListener('click', async () => {
+            const bookingId = button.dataset.bookingId;
+            if (!confirm('Are you sure you want to confirm this booking?')) return;
+
+            try {
+                const response = await fetch(`/admin/api/bookings/${bookingId}/confirm`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const result = await response.json();
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert('Error confirming booking: ' + error.message);
+            }
+        });
+    });
+
+    // Cancel Booking
+    document.querySelectorAll('.cancel-booking').forEach(button => {
+        button.addEventListener('click', async () => {
+            const bookingId = button.dataset.bookingId;
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
+
+            try {
+                const response = await fetch(`/admin/api/bookings/${bookingId}/cancel`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const result = await response.json();
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert('Error cancelling booking: ' + error.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,8 +1,8 @@
-"""init
+"""add event_status
 
-Revision ID: 61325340101e
+Revision ID: 1c6ec8487181
 Revises: 
-Create Date: 2025-06-07 10:11:36.019873
+Create Date: 2025-06-07 14:04:28.752404
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '61325340101e'
+revision = '1c6ec8487181'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,6 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=200), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
     sa.Column('venue', sa.String(length=200), nullable=False),
     sa.Column('event_date', sa.DateTime(), nullable=False),
     sa.Column('total_tickets', sa.Integer(), nullable=False),

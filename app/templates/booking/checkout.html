@@ -3,69 +3,110 @@
 {% block title %}Checkout - Ticket Booking System{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h3>Checkout</h3>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Progress Stepper -->
+            <div class="checkout-progress mb-4">
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span class="active"><i class="fas fa-shopping-cart"></i> Booking Created</span>
+                    <span class="active"><i class="fas fa-credit-card"></i> Payment</span>
+                    <span><i class="fas fa-ticket-alt"></i> Tickets Issued</span>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h4>Event Details</h4>
-                        <p><strong>Event:</strong> {{ booking.event.title }}</p>
-                        <p><strong>Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}</p>
-                        <p><strong>Venue:</strong> {{ booking.event.venue }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h4>Booking Details</h4>
-                        <p><strong>Booking Number:</strong> {{ booking.booking_number }}</p>
-                        <p><strong>Number of Tickets:</strong> {{ booking.quantity }}</p>
-                        <p><strong>Total Amount:</strong> {{ booking.total_amount | format_price }}</p>
-                    </div>
-                </div>
 
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <h4>Payment Information</h4>
-                        <form id="payment-form" method="POST">
-                            {{ form.csrf_token }}
-                            <div class="mb-3">
-                                <label for="card-holder" class="form-label">Card Holder Name</label>
-                                {{ form.card_holder(class="form-control") }}
-                            </div>
-                            <div class="mb-3">
-                                <label for="card-number" class="form-label">Card Number</label>
-                                {{ form.card_number(class="form-control") }}
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="expiry" class="form-label">Expiry Date (MM/YY)</label>
-                                    {{ form.expiry(class="form-control") }}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="cvv" class="form-label">CVV</label>
-                                    {{ form.cvv(class="form-control") }}
-                                </div>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg" id="submit-button">
-                                    Pay {{ booking.total_amount | format_price }}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+            <!-- Expiration Timer -->
+            <div class="alert alert-warning mb-4">
+                <i class="fas fa-clock"></i> Time remaining to complete payment: 
+                <strong id="checkout-timer" data-created="{{ booking.created_at.isoformat() }}">30:00</strong>
+            </div>
 
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="alert alert-info">
-                            <h5>Important Information:</h5>
-                            <ul class="mb-0">
-                                <li>Your tickets will be issued immediately after successful payment.</li>
-                                <li>You can view and download your tickets from the My Bookings page.</li>
-                                <li>Cancellation is available up to 24 hours before the event.</li>
-                            </ul>
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-shopping-cart"></i> Complete Your Booking</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h4><i class="fas fa-calendar-alt"></i> Event Details</h4>
+                            <div class="event-details p-3 bg-light rounded">
+                                <p><strong>Event:</strong> {{ booking.event.title }}</p>
+                                <p><strong>Date:</strong> {{ booking.event.event_date.strftime('%B %d, %Y %I:%M %p') }}</p>
+                                <p><strong>Venue:</strong> {{ booking.event.venue }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h4><i class="fas fa-ticket-alt"></i> Booking Details</h4>
+                            <div class="booking-details p-3 bg-light rounded">
+                                <p><strong>Booking Number:</strong> {{ booking.booking_number }}</p>
+                                <p><strong>Number of Tickets:</strong> {{ booking.quantity }}</p>
+                                <p><strong>Total Amount:</strong> <span class="text-primary h5">{{ booking.total_amount | format_price }}</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h4><i class="fas fa-credit-card"></i> Payment Information</h4>
+                            <form id="payment-form" method="POST">
+                                {{ form.csrf_token }}
+                                <div class="mb-3">
+                                    <label for="card-holder" class="form-label">Card Holder Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        {{ form.card_holder(class="form-control", placeholder="Name on card") }}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="card-number" class="form-label">Card Number</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
+                                        {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="expiry" class="form-label">Expiry Date (MM/YY)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                            {{ form.expiry(class="form-control", placeholder="MM/YY") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="cvv" class="form-label">CVV</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                            {{ form.cvv(class="form-control", placeholder="123") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="submit-button">
+                                        <i class="fas fa-lock"></i> Pay Securely {{ booking.total_amount | format_price }}
+                                    </button>
+                                    <a href="{{ url_for('booking.my_bookings') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to My Bookings
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-info-circle"></i> Important Information:</h5>
+                                <ul class="mb-0">
+                                    <li>Your booking will be held for 30 minutes.</li>
+                                    <li>Tickets will be issued immediately after successful payment.</li>
+                                    <li>You can view and download your tickets from the My Bookings page.</li>
+                                    <li>Cancellation is available up to 24 hours before the event.</li>
+                                    <li>For any issues, please contact our support team.</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -80,15 +121,60 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('payment-form');
     const submitButton = document.getElementById('submit-button');
-
+    const timer = document.getElementById('checkout-timer');
+    
+    // Payment form submission
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         submitButton.disabled = true;
-        submitButton.textContent = 'Processing...';
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Payment...';
 
         // Here you would typically integrate with a payment gateway
-        // For now, we'll just submit the form
-        form.submit();
+        setTimeout(() => form.submit(), 1500); // Simulated processing delay
+    });
+
+    // Checkout timer
+    function updateTimer() {
+        const created = new Date(timer.dataset.created);
+        const expiresAt = new Date(created.getTime() + 30 * 60000); // 30 minutes
+        const now = new Date();
+        const timeLeft = expiresAt - now;
+
+        if (timeLeft <= 0) {
+            window.location.href = "{{ url_for('booking.my_bookings') }}";
+            return;
+        }
+
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Update timer every second
+    setInterval(updateTimer, 1000);
+    updateTimer();
+
+    // Form validation
+    const cardNumber = document.querySelector('[name="card_number"]');
+    const expiry = document.querySelector('[name="expiry"]');
+    const cvv = document.querySelector('[name="cvv"]');
+
+    cardNumber.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = value.replace(/(\d{4})/g, '$1 ').trim();
+        e.target.value = value.substring(0, 19);
+    });
+
+    expiry.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.substring(0, 2) + '/' + value.substring(2);
+        }
+        e.target.value = value.substring(0, 5);
+    });
+
+    cvv.addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/\D/g, '').substring(0, 3);
     });
 });
 </script>

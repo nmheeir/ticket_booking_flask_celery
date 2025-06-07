@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import current_app, url_for
 from app.models.user import User
 from app.utils.database import db
-from app.celery.tasks.notification_tasks import send_email_notification
+from app.celery.tasks.email_tasks import send_email_notification
 from itsdangerous import URLSafeTimedSerializer
 
 class AuthService:
@@ -65,11 +65,14 @@ class AuthService:
                 context=context
             )
 
+
             return user, "Registration successful. Please check your email to confirm your account."
         
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error in user registration: {str(e)}")
+            current_app.logger.error(
+                f"[register_user] Error registering user with email={email}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+            )
             return None, "An error occurred during registration. Please try again."
 
     @staticmethod
@@ -107,6 +110,54 @@ class AuthService:
 
             return True, "Your account has been confirmed successfully", user
 
+        # Trong method confirm_email
         except Exception as e:
-            current_app.logger.error(f"Error in email confirmation: {str(e)}")
-            return False, "The confirmation link is invalid or has expired", None 
+            current_app.logger.error(
+                f"[confirm_email] Error confirming token={token}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+            )
+            return False, "The confirmation link is invalid or has expired", None
+
+        
+    @staticmethod
+    def resend_confirmation_email(user):
+        """
+        Resend confirmation email to user if not already confirmed.
+
+        Args:
+            user (User): The user to resend email to.
+
+        Returns:
+            tuple: (bool success, str message)
+        """
+        if user.is_confirmed:
+            return False, "Your account is already confirmed."
+
+        try:
+            token = user.generate_confirmation_token()
+            confirmation_url = url_for(
+                'auth.confirm_email',
+                token=token,
+                _external=True
+            )
+
+            context = {
+                'user': user.to_dict(),
+                'confirmation_url': confirmation_url,
+                'year': datetime.utcnow().year
+            }
+
+            send_email_notification.delay(
+                recipient_email=user.email,
+                subject='Please Confirm Your Account',
+                template_name='mail/registration_confirmation.html',
+                context=context
+            )
+
+            return True, "A new confirmation email has been sent to your email address."
+
+        # Trong method resend_confirmation_email
+        except Exception as e:
+            current_app.logger.error(
+                f"[resend_confirmation_email] Error resending to user_id={user.id}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+            )
+            return False, "An error occurred while resending confirmation email."

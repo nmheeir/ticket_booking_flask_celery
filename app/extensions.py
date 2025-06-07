@@ -13,6 +13,9 @@ celery = Celery('app')
 
 def init_celery(app=None):
     """Initialize Celery with Flask app context"""
+    if not app:
+        return
+
     celery.conf.update(
         broker_url=app.config['CELERY_BROKER_URL'],
         result_backend=app.config['CELERY_RESULT_BACKEND'],

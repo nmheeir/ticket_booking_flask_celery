@@ -1,12 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
+from flask import current_app
 from app.models.user import User
-from app.utils.database import db, commit_changes
 from app.forms.auth import LoginForm, RegistrationForm
 from app.services.auth_service import AuthService
-from app.celery.tasks.notification_tasks import send_email_notification
-from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -93,24 +90,10 @@ def unconfirmed():
 @login_required
 def resend_confirmation():
     """Resend confirmation email"""
-    if current_user.is_confirmed:
-        flash('Your account is already confirmed.', 'info')
+    success, message = AuthService.resend_confirmation_email(current_user)
+    flash(message, 'info' if success else 'danger')
+    
+    if success:
+        return redirect(url_for('auth.unconfirmed'))
+    else:
         return redirect(url_for('main.index'))
-        
-    token = current_user.generate_confirmation_token()
-    confirmation_url = url_for('auth.confirm_email', token=token, _external=True)
-    
-    # Send confirmation email using Celery task
-    send_email_notification.delay(
-        recipient_email=current_user.email,
-        subject='Please Confirm Your Account',
-        template_name='mail/registration_confirmation.html',
-        context={
-            'user': current_user.to_dict(),
-            'confirmation_url': confirmation_url,
-            'year': datetime.utcnow().year
-        }
-    )
-    
-    flash('A new confirmation email has been sent to your email address.', 'info')
-    return redirect(url_for('auth.unconfirmed'))

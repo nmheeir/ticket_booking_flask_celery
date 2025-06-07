@@ -36,6 +36,19 @@ services:
       - web
       - redis
 
+  celery_beat:
+    build: .
+    command: celery -A celery_worker.celery beat --loglevel=info
+    volumes:
+      - ./app:/app/app
+      - ./instance:/app/instance
+      - ./celery_worker.py:/app/celery_worker.py
+    env_file:
+      - .env
+    depends_on:
+      - celery_worker
+      - redis
+
   flower:
     build: .
     command: celery -A celery_worker.celery flower --port=5555
