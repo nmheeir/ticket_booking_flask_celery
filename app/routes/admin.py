@@ -1,13 +1,16 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import current_user
+from flask_login import current_user, login_required
 from app.models.user import User
 from app.models.event import Event
 from app.models.booking import Booking
 from app.models.role import Role
 from app.utils.database import db, commit_changes
-from app.utils.decorators import permission_required
+from app.utils.decorators import permission_required, admin_required
 from app.utils.permissions import Permission
+from app.services.email_service import EmailService
+from app.extensions import csrf
 from datetime import datetime, timedelta
+from app.celery.tasks.email_tasks import send_email_notification
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -50,41 +53,7 @@ def dashboard():
     )
 
 
-@admin_bp.route("/users")
-@permission_required(Permission.MANAGE_USERS)
-def users():
-    users = User.query.all()
-    roles = Role.query.all()
-    return render_template("admin/users.html", users=users, roles=roles)
 
-
-@admin_bp.route("/users/<int:user_id>/role", methods=["POST"])
-@permission_required(Permission.MANAGE_USERS)
-def update_user_role(user_id):
-    user = User.query.get_or_404(user_id)
-    role_id = request.form.get("role_id", type=int)
-
-    if user.id == current_user.id:
-        flash("You cannot change your own role.", "danger")
-    else:
-        role = Role.query.get_or_404(role_id)
-        user.role = role
-        commit_changes()
-        flash(f"Role updated for {user.email}", "success")
-    return redirect(url_for("admin.users"))
-
-
-@admin_bp.route("/users/<int:user_id>/toggle-active", methods=["POST"])
-@permission_required(Permission.MANAGE_USERS)
-def toggle_active(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.id == current_user.id:
-        flash("You cannot deactivate your own account.", "danger")
-    else:
-        user.is_active = not user.is_active
-        commit_changes()
-        flash(f"Active status updated for {user.email}", "success")
-    return redirect(url_for("admin.users"))
 
 
 @admin_bp.route("/events")
@@ -157,3 +126,112 @@ def reports():
 def user_detail(user_id):
     user = User.query.get_or_404(user_id)
     return render_template("admin/user_detail.html", user=user)
+
+@admin_bp.route('/users')
+@login_required
+@admin_required
+def list_users():
+    users = User.query.all()
+    return render_template('admin/users/list.html', users=users)
+
+@admin_bp.route('/users/<int:user_id>')
+@login_required
+@admin_required
+def view_user(user_id):
+    user = User.query.get_or_404(user_id)
+    return render_template('admin/users/view.html', user=user)
+
+@admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if request.method == 'POST':
+        user.username = request.form.get('username')
+        user.email = request.form.get('email')
+        user.role = request.form.get('role')
+        
+        if request.form.get('password'):
+            user.set_password(request.form.get('password'))
+            
+        db.session.commit()
+        flash('User updated successfully', 'success')
+        return redirect(url_for('admin.list_users'))
+        
+    return render_template('admin/users/edit.html', user=user)
+
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'admin':
+        flash('Cannot delete admin user', 'error')
+        return redirect(url_for('admin.list_users'))
+        
+    db.session.delete(user)
+    db.session.commit()
+    flash('User deleted successfully', 'success')
+    return redirect(url_for('admin.list_users'))
+
+@admin_bp.route('/send-bulk-email', methods=['GET'])
+@login_required
+@admin_required
+def bulk_email_form():
+    users = User.query.all()
+    events = Event.query.filter(Event.event_date >= datetime.now()).all()
+    return render_template('admin/users/bulk_email.html', users=users, events=events)
+
+@admin_bp.route('/send-bulk-email', methods=['POST'])
+@login_required
+@admin_required
+def send_bulk_email():
+    selected_users = request.form.getlist('selected_users[]')
+    event_id = request.form.get('event_id')
+    custom_message = request.form.get('custom_message', '')
+    
+    if not selected_users:
+        flash('Please select at least one user', 'error')
+        return redirect(url_for('admin.bulk_email_form'))
+        
+    if not event_id:
+        flash('Please select an event', 'error')
+        return redirect(url_for('admin.bulk_email_form'))
+    
+    event = Event.query.get_or_404(event_id)
+    
+    # Tạo event URL trước khi gửi email
+    event_url = url_for('events.detail', event_id=event.id, _external=True)
+    
+    success_count = 0
+    fail_count = 0
+    
+    for user_id in selected_users:
+        user = User.query.get(user_id)
+        if user:
+            context = {
+                'user': user.to_dict(),
+                'event': event.to_dict(),
+                'custom_message': custom_message,
+                'event_url': event_url  # Thêm URL vào context
+            }
+            
+            # Gửi email thông qua Celery task
+            result = send_email_notification.delay(
+                recipient_email=user.email,
+                subject=f"New Event Announcement: {event.title}",
+                template_name='mail/event_announcement.html',
+                context=context
+            )
+            
+            if result.get():
+                success_count += 1
+            else:
+                fail_count += 1
+    
+    if success_count > 0:
+        flash(f'Successfully sent {success_count} emails', 'success')
+    if fail_count > 0:
+        flash(f'Failed to send {fail_count} emails', 'error')
+        
+    return redirect(url_for('admin.bulk_email_form'))

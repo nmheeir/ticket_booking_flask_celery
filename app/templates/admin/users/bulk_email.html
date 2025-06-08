@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3>Send Bulk Email</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.send_bulk_email') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-4">
+                    <label class="form-label">Select Event to Announce</label>
+                    <select name="event_id" class="form-select" required>
+                        <option value="">Choose an event...</option>
+                        {% for event in events %}
+                        <option value="{{ event.id }}">{{ event.title }} ({{ event.event_date.strftime('%Y-%m-%d') }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Custom Message (Optional)</label>
+                    <textarea name="custom_message" class="form-control" rows="4" placeholder="Add a custom message to include in the email..."></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Select Recipients</label>
+                    <div class="mb-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllUsers()">Select All</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="deselectAllUsers()">Deselect All</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td><input type="checkbox" name="selected_users[]" value="{{ user.id }}" class="user-checkbox"></td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.role }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Send Emails</button>
+                    <a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+    var checkboxes = document.getElementsByClassName('user-checkbox');
+    for (var checkbox of checkboxes) {
+        checkbox.checked = this.checked;
+    }
+});
+
+function selectAllUsers() {
+    var checkboxes = document.getElementsByClassName('user-checkbox');
+    for (var checkbox of checkboxes) {
+        checkbox.checked = true;
+    }
+    document.getElementById('select-all').checked = true;
+}
+
+function deselectAllUsers() {
+    var checkboxes = document.getElementsByClassName('user-checkbox');
+    for (var checkbox of checkboxes) {
+        checkbox.checked = false;
+    }
+    document.getElementById('select-all').checked = false;
+}
+</script>
+{% endblock %} 

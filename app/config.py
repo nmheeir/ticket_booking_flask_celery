@@ -9,6 +9,10 @@ class Config:
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     
+    # Server Name (for URL generation)
+    SERVER_NAME = os.getenv('SERVER_NAME', 'localhost:5000')
+    PREFERRED_URL_SCHEME = os.getenv('PREFERRED_URL_SCHEME', 'http')
+    
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL') or \
         'sqlite:///' + os.path.join(basedir, 'instance', 'ticket_booking.sqlite')

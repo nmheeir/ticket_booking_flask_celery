@@ -1,8 +1,8 @@
-"""add event_status
+"""init
 
-Revision ID: 1c6ec8487181
+Revision ID: 1cb3555ae4a2
 Revises: 
-Create Date: 2025-06-07 14:04:28.752404
+Create Date: 2025-06-08 15:24:21.541725
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '1c6ec8487181'
+revision = '1cb3555ae4a2'
 down_revision = None
 branch_labels = None
 depends_on = None

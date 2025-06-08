@@ -1,5 +1,6 @@
-from app.extensions import celery
-from app.services.email_service import EmailService
+from app.extensions import celery, mail
+from flask import render_template, current_app
+from flask_mail import Message
 import logging
 from datetime import datetime, timedelta
 from app.models.event import Event
@@ -8,41 +9,70 @@ from app.models.booking import Booking
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+def send_mail(recipient_email, subject, template_name, context):
+    """Helper function to send email using Flask-Mail"""
+    try:
+        app = current_app._get_current_object()
+        
+        # Ensure we have SERVER_NAME configured
+        if not app.config.get('SERVER_NAME'):
+            app.config['SERVER_NAME'] = 'localhost:5000'  # Default value
+            app.config['PREFERRED_URL_SCHEME'] = 'http'   # Default to http
+        
+        with app.app_context():
+            # Add current year to context if not present
+            if 'year' not in context:
+                context['year'] = datetime.utcnow().year
+            
+            # Get mail sender from config
+            mail_sender = app.config.get('MAIL_DEFAULT_SENDER')
+            if not mail_sender:
+                logger.error("MAIL_DEFAULT_SENDER not configured")
+                raise Exception('Mail sender not configured')
+            
+            # Create message
+            msg = Message(
+                subject=subject,
+                recipients=[recipient_email],
+                sender=mail_sender
+            )
+            
+            # Render template with context
+            msg.html = render_template(template_name, **context)
+            
+            # Send email
+            mail.send(msg)
+            return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
+        raise e
 
 @celery.task(name='tasks.send_email_notification', bind=True, max_retries=3)
 def send_email_notification(self, recipient_email, subject, template_name, context):
-    """Send email notification"""
+    """Send email notification using Flask-Mail directly"""
     try:
         logger.info(f"Starting email notification task for {recipient_email}")
         logger.info(f"Subject: {subject}")
         logger.info(f"Using template: {template_name}")
         logger.info(f"Context: {context}")
         
-        success = EmailService.send_email(
-            recipient_email=recipient_email,
-            subject=subject,
-            template_name=template_name,
-            context=context
-        )
-        if success:
-            logger.info(f"Email sent successfully to {recipient_email}")
-            return {'status': 'success', 'message': f'Email sent to {recipient_email}'}
-        else:
-            logger.error(f"Failed to send email to {recipient_email}")
-            raise Exception('Failed to send email')
+        send_mail(recipient_email, subject, template_name, context)
+        
+        logger.info(f"Email sent successfully to {recipient_email}")
+        return {'status': 'success', 'message': f'Email sent to {recipient_email}'}
+        
     except Exception as e:
+        logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
         # Retry task if failed
         if self.request.retries < self.max_retries:
+            logger.info(f"Retrying email send to {recipient_email} (attempt {self.request.retries + 1})")
             self.retry(countdown=60 * (self.request.retries + 1), exc=e)
-        logger.error(f"Email notification task failed for {recipient_email}: {str(e)}")
         return {'status': 'error', 'message': str(e)}
 
 @celery.task(name='tasks.send_booking_reminder')
 def send_booking_reminder(booking_id):
     """Send booking reminder before event"""
     try:
-        from app.models.booking import Booking
         booking = Booking.query.get(booking_id)
         if not booking:
             return {'status': 'error', 'message': 'Booking not found'}
@@ -59,17 +89,14 @@ def send_booking_reminder(booking_id):
         }
         
         # Send reminder email
-        success = EmailService.send_email(
+        send_mail(
             recipient_email=user.email,
             subject=f'Reminder: {booking.event.name} is coming up!',
             template_name='mail/booking_reminder.html',
             context=context
         )
         
-        if success:
-            return {'status': 'success', 'booking_number': booking.booking_number}
-        else:
-            raise Exception('Failed to send reminder email')
+        return {'status': 'success', 'booking_number': booking.booking_number}
             
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
@@ -78,9 +105,6 @@ def send_booking_reminder(booking_id):
 def send_event_updates(event_id, update_message):
     """Send updates about an event to all ticket holders"""
     try:
-        from app.models.event import Event
-        from app.models.booking import Booking
-        
         event = Event.query.get(event_id)
         if not event:
             return {'status': 'error', 'message': 'Event not found'}
@@ -105,17 +129,14 @@ def send_event_updates(event_id, update_message):
                 }
                 
                 # Send update email
-                success = EmailService.send_email(
+                send_mail(
                     recipient_email=booking.user.email,
-                    subject=f'Update for {event.name}',
+                    subject=f'Update for {event.title}',
                     template_name='mail/event_update.html',
                     context=context
                 )
                 
-                if success:
-                    notification_count += 1
-                else:
-                    failed_count += 1
+                notification_count += 1
                     
             except Exception:
                 failed_count += 1
@@ -164,19 +185,15 @@ def send_event_reminders():
                 }
                 
                 # Send reminder email
-                success = EmailService.send_email(
+                send_mail(
                     recipient_email=booking.user.email,
-                    subject=f"Reminder: {event.name} starts in 24 hours!",
+                    subject=f"Reminder: {event.title} starts in 24 hours!",
                     template_name='mail/event_reminder.html',
                     context=context
                 )
                 
-                if success:
-                    reminder_count += 1
-                    logger.info(f"Sent reminder for event {event.name} to {booking.user.email}")
-                else:
-                    failed_count += 1
-                    logger.error(f"Failed to send reminder for event {event.name} to {booking.user.email}")
+                reminder_count += 1
+                logger.info(f"Sent reminder for event {event.title} to {booking.user.email}")
                     
             except Exception as e:
                 failed_count += 1
@@ -218,16 +235,15 @@ def send_low_ticket_alerts():
                     'remaining_percentage': round(remaining_percentage, 2)
                 }
                 
-                success = EmailService.send_email(
+                send_mail(
                     recipient_email=admin_email,
                     subject=f"Low Ticket Alert: {event.name}",
                     template_name='mail/low_ticket_alert.html',
                     context=context
                 )
                 
-                if success:
-                    alert_count += 1
-                    logger.info(f"Sent low ticket alert for event {event.name}")
+                alert_count += 1
+                logger.info(f"Sent low ticket alert for event {event.name}")
                     
         except Exception as e:
             logger.error(f"Error sending low ticket alert for event {event.name}: {str(e)}")

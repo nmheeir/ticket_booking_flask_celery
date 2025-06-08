@@ -55,12 +55,14 @@ def create():
     form = EventForm()
     if form.validate_on_submit():
         event = Event(
-            name=form.name.data,
+            title=form.title.data,
             description=form.description.data,
             event_date=form.event_date.data,
             venue=form.venue.data,
             total_tickets=form.total_tickets.data,
             price=form.price.data,
+            status='active',
+            category=form.category.data
         )
         db.session.add(event)
         commit_changes()
@@ -75,12 +77,13 @@ def edit(event_id):
     event = Event.query.get_or_404(event_id)
     form = EventForm(obj=event)
     if form.validate_on_submit():
-        event.name = form.name.data
+        event.title = form.title.data
         event.description = form.description.data
         event.event_date = form.event_date.data
         event.venue = form.venue.data
         event.total_tickets = form.total_tickets.data
         event.price = form.price.data
+        event.category = form.category.data
         commit_changes()
         flash("Event updated successfully!", "success")
         return redirect(url_for("events.detail", event_id=event.id))

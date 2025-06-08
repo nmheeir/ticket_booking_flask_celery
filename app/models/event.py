@@ -105,7 +105,7 @@ class Event(db.Model):
                 category=fake.random_element(
                     elements=("Music", "Art", "Sports", "Technology", "Other")
                 ),
-                image_url=fake.image_url(),
+                image_url=fake.image_url(300, 400),
             )
             events.append(event)
         return events
