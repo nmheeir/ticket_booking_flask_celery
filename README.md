@@ -1,62 +1,63 @@
-# Hệ thống Đặt vé Sự kiện (Ticket Booking System)
+# Hệ Thống Đặt Vé Sự Kiện
 
-Hệ thống đặt vé sự kiện hiện đại được xây dựng bằng Flask, SQLAlchemy và Celery, cung cấp giải pháp toàn diện cho việc quản lý và đặt vé sự kiện.
+Hệ thống đặt vé sự kiện trực tuyến được xây dựng bằng Flask, cho phép người dùng dễ dàng đặt vé cho các sự kiện và quản lý đơn đặt vé.
 
-## Chức năng chính
+## Tính Năng Chính
 
-### 1. Quản lý người dùng
-- Đăng ký và đăng nhập tài khoản
-- Phân quyền người dùng (Admin, Staff, Customer)
-- Quản lý thông tin cá nhân
-- Đổi mật khẩu và khôi phục mật khẩu qua email
-
-### 2. Quản lý sự kiện
-- Tạo và quản lý sự kiện (dành cho Admin/Staff)
-- Phân loại sự kiện theo danh mục
-- Tìm kiếm sự kiện theo nhiều tiêu chí
-- Lọc sự kiện theo thời gian, địa điểm, giá vé
-- Xem chi tiết sự kiện và số lượng vé còn lại
-
-### 3. Đặt vé và thanh toán
-- Chọn và đặt vé cho sự kiện
-- Chọn vị trí ghế ngồi (nếu có)
-- Thanh toán trực tuyến qua Stripe
+### Người Dùng
+- Đăng ký và xác thực email
+- Đăng nhập/Đăng xuất
+- Xem danh sách sự kiện
+- Tìm kiếm sự kiện theo tên hoặc địa điểm
+- Đặt vé và thanh toán trực tuyến
 - Xem lịch sử đặt vé
-- Hủy đặt vé (theo chính sách)
+- Hủy đặt vé và nhận hoàn tiền
 
-### 4. Xử lý background với Celery
-- Gửi email xác nhận đặt vé
-- Gửi email nhắc nhở sự kiện
-- Xử lý hoàn tiền tự động khi hủy vé
-- Cập nhật trạng thái vé và số lượng còn lại
-- Tạo báo cáo thống kê định kỳ
-
-### 5. Trang Admin
+### Quản Trị Viên
+- Quản lý sự kiện (thêm, sửa, xóa)
 - Quản lý người dùng
-- Quản lý sự kiện và vé
-- Xem thống kê doanh thu
-- Quản lý đơn đặt vé
-- Xuất báo cáo
+- Xem thống kê và báo cáo
+- Gửi email thông báo hàng loạt
+- Quản lý đặt vé
 
-## Yêu cầu hệ thống
+### Tính Năng Hệ Thống
+- Xử lý thanh toán tự động
+- Gửi email xác nhận và nhắc nhở
+- Tạo và quản lý mã QR cho vé
+- Hủy đặt vé tự động nếu không thanh toán
+- Báo cáo doanh thu tự động
 
-- Python 3.8+
-- PostgreSQL
-- Redis (cho Celery)
-- Stripe account (cho thanh toán)
+## Công Nghệ Sử Dụng
 
-## Cài đặt và Chạy
+- **Backend**: Flask (Python)
+- **Database**: SQLAlchemy (SQLite/PostgreSQL)
+- **Task Queue**: Celery + Redis
+- **Frontend**: HTML, CSS, JavaScript
+- **Email**: Flask-Mail
+- **Authentication**: Flask-Login
+- **Form Handling**: Flask-WTF
+- **Container**: Docker
+
+## Cài Đặt và Chạy
+
+### Yêu Cầu Hệ Thống
+- Python 3.11+
+- Redis
+- Docker (tùy chọn)
+
+### Cài Đặt Thông Thường
 
 1. Clone repository:
 ```bash
 git clone <repository-url>
-cd ticket_booking
+cd ticket_booking_project
 ```
 
-2. Tạo và kích hoạt môi trường ảo:
+2. Tạo môi trường ảo:
 ```bash
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # Linux/Mac
+venv\\Scripts\\activate   # Windows
 ```
 
 3. Cài đặt dependencies:
@@ -64,20 +65,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Cấu hình môi trường:
-Tạo file `.env` với nội dung:
-```
-FLASK_APP=run.py
-FLASK_ENV=development
-DATABASE_URL=postgresql://user:password@localhost/ticket_booking
-SECRET_KEY=your-secret-key
-REDIS_URL=redis://localhost:6379
-STRIPE_SECRET_KEY=your-stripe-secret-key
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
+4. Tạo file .env từ env.example và cấu hình:
+```bash
+cp env.example .env
 ```
 
 5. Khởi tạo database:
@@ -95,65 +85,75 @@ flask run
 celery -A celery_worker.celery worker --loglevel=info
 ```
 
-## Cấu trúc Project
+### Cài Đặt Docker
+
+1. Build và chạy containers:
+```bash
+docker-compose up --build
+```
+
+## Cấu Trúc Project
 
 ```
 app/
-├── models/          # Database models
-│   ├── user.py     # User model
-│   ├── event.py    # Event model
-│   └── ticket.py   # Ticket model
-├── routes/         # Route handlers
-│   ├── auth.py     # Authentication routes
-│   ├── events.py   # Event management
-│   └── tickets.py  # Ticket booking
-├── services/       # Business logic
-│   ├── email.py    # Email service
-│   └── payment.py  # Payment service
-├── tasks/          # Celery tasks
-│   ├── email.py    # Email tasks
-│   └── reports.py  # Report generation
-├── templates/      # HTML templates
-├── static/         # Static files
-└── utils/          # Utility functions
+├── models/              # Database models
+│   ├── user.py         # User model
+│   ├── event.py        # Event model
+│   ├── booking.py      # Booking model
+│   └── ticket.py       # Ticket model
+├── routes/             # Route handlers
+│   ├── main.py         # Main routes
+│   ├── auth.py         # Authentication routes
+│   ├── events.py       # Event management
+│   ├── booking.py      # Booking management
+│   └── admin.py        # Admin panel routes
+├── services/           # Business logic
+│   ├── auth_service.py # Authentication service
+│   ├── booking_service.py # Booking service
+│   └── email_service.py  # Email service
+├── celery/            # Celery tasks
+│   └── tasks/
+│       ├── booking_tasks.py    # Booking related tasks
+│       └── email_tasks.py      # Email related tasks
+├── templates/         # HTML templates
+├── static/           # Static files
+└── utils/            # Utility functions
 ```
 
-## API Endpoints
+## Quy Trình Đặt Vé
 
-### Authentication
-- POST /api/auth/register - Đăng ký tài khoản
-- POST /api/auth/login - Đăng nhập
-- POST /api/auth/logout - Đăng xuất
-- POST /api/auth/reset-password - Đặt lại mật khẩu
+1. Người dùng chọn sự kiện và số lượng vé
+2. Hệ thống tạo đơn đặt vé tạm thời (10 phút)
+3. Người dùng thanh toán
+4. Sau khi thanh toán thành công:
+   - Tạo vé với mã QR
+   - Gửi email xác nhận
+   - Cập nhật số lượng vé còn lại
+5. Nếu không thanh toán trong 10 phút:
+   - Hủy đơn đặt vé
+   - Hoàn trả số lượng vé vào hệ thống
 
-### Events
-- GET /api/events - Lấy danh sách sự kiện
-- GET /api/events/<id> - Chi tiết sự kiện
-- POST /api/events - Tạo sự kiện mới (Admin)
-- PUT /api/events/<id> - Cập nhật sự kiện (Admin)
-- DELETE /api/events/<id> - Xóa sự kiện (Admin)
+## Tác Vụ Tự Động (Celery)
 
-### Tickets
-- POST /api/tickets/book - Đặt vé
-- GET /api/tickets/my-tickets - Xem vé đã đặt
-- POST /api/tickets/cancel - Hủy vé
-- GET /api/tickets/download/<id> - Tải vé
+- Gửi email nhắc nhở trước sự kiện
+- Hủy đơn đặt vé quá hạn thanh toán
+- Kiểm tra và thông báo khi vé sắp hết
+- Dọn dẹp đơn đặt vé bị bỏ dở
 
-## Testing
+## Phân Quyền
 
-Chạy tests:
-```bash
-pytest
-```
+### User (Người Dùng)
+- Xem sự kiện
+- Đặt vé
+- Quản lý đơn đặt vé cá nhân
 
-## Contributing
+### Staff (Nhân Viên)
+- Quản lý sự kiện
+- Xem thống kê cơ bản
+- Xử lý đơn đặt vé
 
-1. Fork repository
-2. Tạo feature branch
-3. Commit changes
-4. Push to branch
-5. Tạo Pull Request
-
-## License
-
-MIT License 
+### Administrator (Quản Trị Viên)
+- Tất cả quyền của Staff
+- Quản lý người dùng
+- Xem báo cáo chi tiết
+- Cấu hình hệ thống
